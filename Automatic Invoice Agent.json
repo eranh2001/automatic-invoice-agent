@@ -1,0 +1,489 @@
+{
+  "name": "Automatic Invoice Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        96
+      ],
+      "id": "05e3f315-0a3f-4ede-ba9f-fa17628304b8",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here is the invoice text. Extract the required fields from it:\n\n{{ $json.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an invoice data extraction assistant. You receive the text of an invoice that has been extracted from a PDF, and your job is to pull out the key information accurately and return it in the required structured format.\n\nEXTRACT THE FOLLOWING:\n- vendor: the company or person who issued the invoice (who is being paid)\n- date: the date the invoice was issued\n- total: the final total amount owed, as a number\n- currency: the currency of the total (for example USD, EUR, GBP)\n- line_items: each individual product or service listed, with its item name, quantity, unit price, and line total\n\nCRITICAL RULES:\n1. Extract only information that actually appears in the invoice text. Never invent, guess, or estimate any value.\n2. If a field is not present or you cannot find it clearly in the text, leave that field empty. An empty field is correct and acceptable. A guessed value is not.\n3. For the total and all prices, extract the exact number shown. Do not round, approximate, or calculate a total yourself if one is printed on the invoice.\n4. For line_items, extract every row you can find. If the invoice has no clear line items, return an empty list rather than inventing them.\n5. Do not add commentary, explanation, or any text outside the structured output. Return only the extracted fields.\n\nIf the invoice text is unclear, unreadable, or does not appear to be an invoice at all, leave the fields empty rather than making something up."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        672,
+        96
+      ],
+      "id": "88659c37-bee7-49b1-ba12-6af095430b7e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        656,
+        320
+      ],
+      "id": "7f7bdd2b-bcce-4d33-8a2a-2f122f1a30a9",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "YwSuiNOptlBtmpMQ",
+          "name": "OpenAI account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"vendor\": \"who sent the invoice\",\n  \"invoice_number\": \"the invoice number or ID\",\n  \"date\": \"when the invoice was issued\",\n  \"total\": \"the amount owed\",\n  \"currency\": \"what currency the total is in\",\n  \"line_items\": [\n    {\n      \"item\": \"the name of the product or service\",\n      \"quantity\": \"how many of this item were purchased\",\n      \"unit_price\": \"the cost of a single item\",\n      \"line_total\": \"quantity multiplied by unit price\"\n    }\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        320
+      ],
+      "id": "4f1b6003-154a-48d2-8b55-3dfe5bc2572c",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "16H_3rY4BTxdICqMT9DSyuj5KAyBC0r6YiOcWjc8Eoeg",
+          "mode": "list",
+          "cachedResultName": "Invoices to Text",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/16H_3rY4BTxdICqMT9DSyuj5KAyBC0r6YiOcWjc8Eoeg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/16H_3rY4BTxdICqMT9DSyuj5KAyBC0r6YiOcWjc8Eoeg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "vendor": "={{ $('AI Agent').item.json.output.vendor }}",
+            "date": "={{ $('AI Agent').item.json.output.date }}",
+            "total": "={{ $('AI Agent').item.json.output.total }}",
+            "currency": "={{ $('AI Agent').item.json.output.currency }}",
+            "line_items": "={{ $json.output.line_items.map(item => `${item.item} — ${item.quantity} × ${item.unit_price} = ${item.line_total}`).join('\\n') }}",
+            "invoice_number": "={{ $('AI Agent').item.json.output.invoice_number }}",
+            "processed_at": "={{$now.toFormat('yyyy-MM-dd HH:mm') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "vendor",
+              "displayName": "vendor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_number",
+              "displayName": "invoice_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "line_items",
+              "displayName": "line_items",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1280,
+        80
+      ],
+      "id": "eb3db935-25ab-494f-809b-067a5962b604",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "g0svfFvPMUPPNlMd",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        96
+      ],
+      "id": "14373e5d-2acc-4807-a122-0008ddf92d93",
+      "name": "Download attachment",
+      "webhookId": "2e80a9c4-7437-4c34-8919-719254be4bc0",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "wh2XQhbcNOCj5zgn",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "95e46d1d-0718-4347-844e-82c32900f100",
+              "leftValue": "={{ $json.output.vendor }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "07fbf3ea-d563-472f-b407-acaa15f25020",
+              "leftValue": "={{ $json.output.date }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "1768dd21-4f32-4930-be22-ba45c14f617b",
+              "leftValue": "={{ $json.output.total }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "09053ce8-ef7a-484c-988f-249bb3c1f27d",
+              "leftValue": "={{Number($json.output.total) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1024,
+        96
+      ],
+      "id": "b2af91a5-d6a9-4001-aa75-5770bd03a219",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "labelIds": [
+            "Label_904972176664283281"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        96
+      ],
+      "id": "090ff7a8-cde8-4dbb-b569-736b98015ade",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "wh2XQhbcNOCj5zgn",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B9D0BRTJP",
+          "mode": "id"
+        },
+        "text": "=Problem with the Invoice of {{ $json.output.vendor }} , please check the invoice ",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1280,
+        256
+      ],
+      "id": "e47adbbf-7765-4643-ae09-9182ff08782c",
+      "name": "Alert - Invoice is invalid",
+      "webhookId": "b68efb2c-5b25-4a66-9d36-f93cd118ff75",
+      "credentials": {
+        "slackApi": {
+          "id": "tMww33jIjvrmTd2k",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# The AI extracts the invoice fields, then validation checks that vendor, date, and total are present before saving",
+        "height": 576,
+        "width": 528,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -80
+      ],
+      "id": "ceee16d8-fcf9-41ac-a8f1-69c4a402600d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# Receives invoice emails and extracts the text from the PDF attachment.",
+        "height": 576,
+        "width": 656
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        -80
+      ],
+      "id": "365f5fca-8d64-4f04-977a-78d9933caf18",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# Valid invoices are logged to the sheet. Invalid ones alert a human for review instead of saving bad data.",
+        "height": 576,
+        "width": 368,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        -80
+      ],
+      "id": "6e6880f8-d24b-4a1c-9010-f8b2c0b41aa5",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download attachment": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert - Invoice is invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "95acbbff-98cf-4080-a832-771290261621",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b841f95498d3b48a5fcd832e4e741fe811275e87c53b729b900a5ec88b629438"
+  },
+  "nodeGroups": [],
+  "id": "P9QMBHpzhQscbTcg",
+  "tags": []
+}
